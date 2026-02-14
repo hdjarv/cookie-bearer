@@ -65,6 +65,7 @@ func main() {
 	accessTokenProperty := flag.String("access-token-property", getenvDefault("CB_ACCESS_TOKEN_PROPERTY", "accessToken"), "JSON property to extract access token from login response (env: CB_ACCESS_TOKEN_PROPERTY)")
 	loginPath := flag.String("login-path", getenvDefault("CB_LOGIN_PATH", "/login"), "Path to intercept for login (env: CB_LOGIN_PATH)")
 	logoutPath := flag.String("logout-path", getenvDefault("CB_LOGOUT_PATH", "/logout"), "Path to intercept for logout (env: CB_LOGOUT_PATH)")
+	refreshPath := flag.String("refresh-path", getenvDefault("CB_REFRESH_PATH", "/refresh-token"), "Path to intercept for token refresh requests (env: CB_REFRESH_PATH)")
 	listenHost := flag.String("host", getenvDefault("CB_HOST", "127.0.0.1"), "Host address for the proxy server to listen on (env: CB_HOST)")
 	port := flag.String("port", getenvDefault("CB_PORT", "8080"), "Port for the proxy server to listen on (env: CB_PORT)")
 	flag.Parse()
@@ -99,7 +100,7 @@ func main() {
 		os.Exit(1)
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", proxyHandler(targetURL, *cookieName, *accessTokenProperty, *cookieSecure, *cookieMaxAge, sameSite, *loginPath, *logoutPath))
+	mux.HandleFunc("/", proxyHandler(targetURL, *cookieName, *accessTokenProperty, *cookieSecure, *cookieMaxAge, sameSite, *loginPath, *logoutPath, *refreshPath))
 
 	listenAddr := *listenHost + ":" + *port
 	server := &http.Server{
@@ -130,7 +131,8 @@ func main() {
 	log.Println("Server stopped")
 }
 
-func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty string, cookieSecure bool, cookieMaxAge int, cookieSameSite http.SameSite, loginPath string, logoutPath string) http.HandlerFunc {
+func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty string, cookieSecure bool, cookieMaxAge int,
+	cookieSameSite http.SameSite, loginPath string, logoutPath string, refreshPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		log.Printf("→ %s %s", r.Method, r.URL.Path)
@@ -162,7 +164,7 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 
 		contentType := resp.Header.Get("Content-Type")
 		mediaType, _, err := mime.ParseMediaType(contentType)
-		if r.URL.Path == loginPath && err == nil && mediaType == "application/json" {
+		if (r.URL.Path == loginPath || r.URL.Path == refreshPath) && err == nil && mediaType == "application/json" {
 			var jsonBody map[string]interface{}
 			if err := json.NewDecoder(resp.Body).Decode(&jsonBody); err == nil {
 				if token, ok := jsonBody[accessTokenProperty].(string); ok {
@@ -177,7 +179,7 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 						MaxAge:   cookieMaxAge,
 					})
 				} else {
-					log.Printf("⚠ %s not found in %s response", accessTokenProperty, loginPath)
+					log.Printf("⚠ Property '%s' not found in %s response", accessTokenProperty, loginPath)
 				}
 			} else {
 				log.Printf("⚠ Failed to parse JSON from %s response: %v", loginPath, err)

@@ -3,14 +3,14 @@
 **cookie-bearer** is a lightweight Go-based HTTP reverse proxy server that:
 
 - Forwards requests to a target server.
-- Extracts an access token from JSON responses at `/login` (configurable) and returns it as a cookie.
-- Uses the token from that cookie to authorize further requests to the target server with a Bearer token.
+- Extracts an access token from JSON responses at `/login` or `/refresh-token` (configurable) and returns it as a cookie.
+- Uses the token from that cookie to authorize further requests to the target server with a _Bearer_ token.
 - Clears the cookie with response from `/logout` (configurable).
 
 ## Features
 
 - 🛡️ Adds `Authorization: Bearer <token>` header from a specified cookie.
-- 🔐 Intercepts login responses (configurable path, default `/login`), extracts `accessToken`, and returns it as a cookie.
+- 🔐 Intercepts login and refresh responses (configurable paths, default `/login` and `/refresh-token`), extracts `accessToken`, and returns it as a cookie.
 - 🚀 Streams all other HTTP requests and responses efficiently.
 - 📋 Configurable via command-line flags and environment variables.
 
@@ -90,19 +90,20 @@ docker run --rm cookie-bearer -version
 
 ### Options
 
-| Flag                     | Env Variable               | Description                                                      | Default     | Required |
-| ------------------------ | -------------------------- | ---------------------------------------------------------------- | ----------- | -------- |
-| `-target`                | `CB_TARGET`                | Target server URL to proxy requests to                           | _(none)_    | ✅       |
-| `-cookie-name`           | `CB_COOKIE_NAME`           | Name of the cookie to read/write the token from/to               | _(none)_    | ✅       |
-| `-cookie-secure`         | `CB_COOKIE_SECURE`         | Set Secure flag on the cookie (`true`/`false` or `1`/`0`)        | false       | ❌       |
-| `-cookie-max-age`        | `CB_COOKIE_MAX_AGE`        | Max-Age (in seconds) for the cookie (0 = session cookie)         | 0           | ❌       |
-| `-cookie-same-site`      | `CB_COOKIE_SAME_SITE`      | SameSite setting for the cookie (`strict`, `lax` or `none`)      | strict      | ❌       |
-| `-access-token-property` | `CB_ACCESS_TOKEN_PROPERTY` | JSON property to extract access token from login response        | accessToken | ❌       |
-| `-login-path`            | `CB_LOGIN_PATH`            | Path to intercept for login (sets the cookie from JSON response) | /login      | ❌       |
-| `-logout-path`           | `CB_LOGOUT_PATH`           | Path to intercept for logout (removes the authentication cookie) | /logout     | ❌       |
-| `-host`                  | `CB_HOST`                  | Host address for the proxy server to listen on                   | 127.0.0.1   | ❌       |
-| `-port`                  | `CB_PORT`                  | Port for the proxy server to listen on                           | 8080        | ❌       |
-| `-version`               | (n/a)                      | Show version information and exit                                | -           | ❌       |
+| Flag                     | Env Variable               | Description                                                              | Default        | Required |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------------ | -------------- | -------- |
+| `-target`                | `CB_TARGET`                | Target server URL to proxy requests to                                   | _(none)_       | ✅       |
+| `-cookie-name`           | `CB_COOKIE_NAME`           | Name of the cookie to read/write the token from/to                       | _(none)_       | ✅       |
+| `-cookie-secure`         | `CB_COOKIE_SECURE`         | Set Secure flag on the cookie (`true`/`false` or `1`/`0`)                | false          | ❌       |
+| `-cookie-max-age`        | `CB_COOKIE_MAX_AGE`        | Max-Age (in seconds) for the cookie (0 = session cookie)                 | 0              | ❌       |
+| `-cookie-same-site`      | `CB_COOKIE_SAME_SITE`      | SameSite setting for the cookie (`strict`, `lax` or `none`)              | strict         | ❌       |
+| `-access-token-property` | `CB_ACCESS_TOKEN_PROPERTY` | JSON property to extract access token from login response                | accessToken    | ❌       |
+| `-login-path`            | `CB_LOGIN_PATH`            | Path to intercept for login (sets the cookie from JSON response)         | /login         | ❌       |
+| `-logout-path`           | `CB_LOGOUT_PATH`           | Path to intercept for logout (removes the authentication cookie)         | /logout        | ❌       |
+| `-refresh-path`          | `CB_REFRESH_PATH`          | Path to intercept for token refresh (sets the cookie from JSON response) | /refresh-token | ❌       |
+| `-host`                  | `CB_HOST`                  | Host address for the proxy server to listen on                           | 127.0.0.1      | ❌       |
+| `-port`                  | `CB_PORT`                  | Port for the proxy server to listen on                                   | 8080           | ❌       |
+| `-version`               | (n/a)                      | Show version information and exit                                        | -              | ❌       |
 
 **Precedence:**  
 Command-line flags take priority over environment variables, which take priority over the built-in default.
@@ -123,11 +124,11 @@ You can also specify a custom property for the access token in the `/login` JSON
 ./cookie-bearer -target=http://localhost:4000 -cookie=Auth -access-token-property=jwt
 ```
 
-### `/login` Route
+### `/login` and `/refresh-token` Routes
 
-> **Note:** The `/login` response must have a `Content-Type` of `application/json`. Parameters such as `charset` are supported (e.g., `application/json; charset=utf-8`).
+> **Note:** The responses must have a `Content-Type` of `application/json`. Parameters such as `charset` are supported (e.g., `application/json; charset=utf-8`).
 
-- For a `/login` POST response like `{ "jwt": "abc123" }`, `cookie-bearer` sets:
+- For a `/login` or `/refresh-token` POST response like `{ "accessToken": "abc123" }`, `cookie-bearer` sets:
 
   ```
   Set-Cookie: Auth=abc123
