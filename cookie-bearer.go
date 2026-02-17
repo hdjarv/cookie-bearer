@@ -57,6 +57,7 @@ func getenvBoolDefault(key string, def bool) bool {
 
 func main() {
 	showVersion := flag.Bool("version", false, "Show version information")
+	verboseMode := flag.Bool("verbose", getenvBoolDefault("CB_VERBOSE", false), "Run in verbose mode")
 	targetStr := flag.String("target", getenvDefault("CB_TARGET", ""), "Target server URL to proxy requests to (env: CB_TARGET)")
 	cookieName := flag.String("cookie-name", getenvDefault("CB_COOKIE_NAME", ""), "Name of the cookie to read/write the token from/to (env: CB_COOKIE_NAME)")
 	cookieSecure := flag.Bool("cookie-secure", getenvBoolDefault("CB_COOKIE_SECURE", false), "Set Secure flag on cookie (env: CB_COOKIE_SECURE)")
@@ -112,6 +113,20 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		log.Printf("cookie-bearer proxy server version %s (pid: %d) listening on %s and forwarding to %s\n", version, os.Getpid(), listenAddr, *targetStr)
+		if *verboseMode {
+			log.Printf("configuration:\n")
+			log.Printf("  targetStr: %s\n", *targetStr)
+			log.Printf("  cookieName: %s\n", *cookieName)
+			log.Printf("  cookieSecure: %t\n", *cookieSecure)
+			log.Printf("  cookieMaxAge: %d\n", *cookieMaxAge)
+			log.Printf("  cookieSameSite: %s\n", *cookieSameSite)
+			log.Printf("  accessTokenProperty: %s\n", *accessTokenProperty)
+			log.Printf("  loginPath: %s\n", *loginPath)
+			log.Printf("  logoutPath: %s\n", *logoutPath)
+			log.Printf("  refreshPath: %s\n", *refreshPath)
+			log.Printf("  listenHost: %s\n", *listenHost)
+			log.Printf("  port: %s\n", *port)
+		}
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed: %s", err)
 		}

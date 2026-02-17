@@ -103,6 +103,7 @@ docker run --rm cookie-bearer -version
 | `-refresh-path`          | `CB_REFRESH_PATH`          | Path to intercept for token refresh (sets the cookie from JSON response) | /refresh-token | ❌       |
 | `-host`                  | `CB_HOST`                  | Host address for the proxy server to listen on                           | 127.0.0.1      | ❌       |
 | `-port`                  | `CB_PORT`                  | Port for the proxy server to listen on                                   | 8080           | ❌       |
+| `-verbose`               | `CB_VERBOSE`               | Run in verbose mode                                                      | false          | ❌       |
 | `-version`               | (n/a)                      | Show version information and exit                                        | -              | ❌       |
 
 **Precedence:**  
