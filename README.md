@@ -3,14 +3,14 @@
 **cookie-bearer** is a lightweight Go-based HTTP reverse proxy server that:
 
 - Forwards requests to a target server.
-- Extracts an access token from JSON responses at `/login` or `/refresh-token` (configurable) and returns it as a cookie.
+- Extracts an access token from successful JSON responses at `/login` or `/refresh-token` (configurable) and returns it as a cookie.
 - Uses the token from that cookie to authorize further requests to the target server with a _Bearer_ token.
-- Clears the cookie with response from `/logout` (configurable).
+- Clears the cookie with successful response from `/logout` (configurable).
 
 ## Features
 
 - 🛡️ Adds `Authorization: Bearer <token>` header from a specified cookie.
-- 🔐 Intercepts login and refresh responses (configurable paths, default `/login` and `/refresh-token`), extracts `accessToken`, and returns it as a cookie.
+- 🔐 Intercepts successful login and refresh responses (configurable paths, default `/login` and `/refresh-token`), extracts `accessToken`, and returns it as a cookie.
 - 🚀 Streams all other HTTP requests and responses efficiently.
 - 📋 Configurable via command-line flags and environment variables.
 

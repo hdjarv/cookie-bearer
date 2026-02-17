@@ -181,9 +181,10 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 
 		contentType := resp.Header.Get("Content-Type")
 		mediaType, _, err := mime.ParseMediaType(contentType)
+		successfulResponse := resp.StatusCode >= 200 && resp.StatusCode < 300
 
 		// Handle login & refresh paths: proxy the request and set the cookie
-		if (r.URL.Path == loginPath || r.URL.Path == refreshPath) && err == nil && mediaType == "application/json" {
+		if successfulResponse && (r.URL.Path == loginPath || r.URL.Path == refreshPath) && err == nil && mediaType == "application/json" {
 			var jsonBody map[string]interface{}
 			if err := json.NewDecoder(resp.Body).Decode(&jsonBody); err == nil {
 				if token, ok := jsonBody[accessTokenProperty].(string); ok {
@@ -198,7 +199,7 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 						MaxAge:   cookieMaxAge,
 					})
 				} else {
-					log.Printf("⚠ Property '%s' not found in %s response", accessTokenProperty, loginPath)
+					log.Printf("⚠ Property '%s' not found in %s response", accessTokenProperty, r.URL.Path)
 				}
 			} else {
 				log.Printf("⚠ Failed to parse JSON from %s response: %v", r.URL.Path, err)
@@ -220,7 +221,7 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 		}
 
 		// Handle logoutPath: proxy the request, return the result, and remove the cookie
-		if r.URL.Path == logoutPath {
+		if successfulResponse && r.URL.Path == logoutPath {
 			// Stream response from backend
 			for key, values := range resp.Header {
 				for _, value := range values {
