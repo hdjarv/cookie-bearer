@@ -101,7 +101,8 @@ func main() {
 		os.Exit(1)
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", proxyHandler(targetURL, *cookieName, *accessTokenProperty, *cookieSecure, *cookieMaxAge, sameSite, *loginPath, *logoutPath, *refreshPath))
+	mux.HandleFunc("/", proxyHandler(targetURL, *cookieName, *accessTokenProperty,
+		*cookieSecure, *cookieMaxAge, sameSite, *loginPath, *logoutPath, *refreshPath))
 
 	listenAddr := *listenHost + ":" + *port
 	server := &http.Server{
@@ -112,7 +113,8 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		log.Printf("cookie-bearer proxy server version %s (pid: %d) listening on %s and forwarding to %s\n", version, os.Getpid(), listenAddr, *targetStr)
+		log.Printf("cookie-bearer proxy server version %s (pid: %d) listening on %s and forwarding to %s\n",
+			version, os.Getpid(), listenAddr, *targetStr)
 		if *verboseMode {
 			log.Printf("configuration:\n")
 			log.Printf("  targetStr: %s\n", *targetStr)
@@ -179,11 +181,13 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 
 		contentType := resp.Header.Get("Content-Type")
 		mediaType, _, err := mime.ParseMediaType(contentType)
+
+		// Handle login & refresh paths: proxy the request and set the cookie
 		if (r.URL.Path == loginPath || r.URL.Path == refreshPath) && err == nil && mediaType == "application/json" {
 			var jsonBody map[string]interface{}
 			if err := json.NewDecoder(resp.Body).Decode(&jsonBody); err == nil {
 				if token, ok := jsonBody[accessTokenProperty].(string); ok {
-					log.Printf("✓ Extracted %s from %s response", accessTokenProperty, loginPath)
+					log.Printf("✓ Extracted %s from %s response", accessTokenProperty, r.URL.Path)
 					http.SetCookie(w, &http.Cookie{
 						Name:     cookieName,
 						Value:    token,
@@ -197,7 +201,7 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 					log.Printf("⚠ Property '%s' not found in %s response", accessTokenProperty, loginPath)
 				}
 			} else {
-				log.Printf("⚠ Failed to parse JSON from %s response: %v", loginPath, err)
+				log.Printf("⚠ Failed to parse JSON from %s response: %v", r.URL.Path, err)
 			}
 
 			// Copy headers excluding Content-Length
@@ -210,7 +214,8 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 				}
 			}
 			w.WriteHeader(resp.StatusCode)
-			log.Printf("✓ Sent empty response for %s with status %d (%s)", loginPath, resp.StatusCode, http.StatusText(resp.StatusCode))
+			log.Printf("✓ Sent empty response for %s - Status %d (%s) [%v]", r.URL.Path,
+				resp.StatusCode, http.StatusText(resp.StatusCode), time.Since(start).Round(time.Millisecond))
 			return
 		}
 
@@ -235,7 +240,8 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 			})
 			w.WriteHeader(resp.StatusCode)
 			io.Copy(w, resp.Body)
-			log.Printf("✓ Proxied %s and cleared cookie %s", logoutPath, cookieName)
+			log.Printf("✓ Proxied %s and cleared cookie %s - Status %d (%s) [%v]",
+				r.URL.Path, cookieName, resp.StatusCode, http.StatusText(resp.StatusCode), time.Since(start).Round(time.Millisecond))
 			return
 		}
 
@@ -248,6 +254,7 @@ func proxyHandler(targetURL *url.URL, cookieName string, accessTokenProperty str
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
 
-		log.Printf("✓ Proxied %s %s - Status %d (%s) [%v]", r.Method, r.URL.Path, resp.StatusCode, http.StatusText(resp.StatusCode), time.Since(start))
+		log.Printf("✓ Proxied %s %s - Status %d (%s) [%v]", r.Method, r.URL.Path,
+			resp.StatusCode, http.StatusText(resp.StatusCode), time.Since(start).Round(time.Millisecond))
 	}
 }
